@@ -1,5 +1,5 @@
 -- Remove existing database and create new
-CREATE DATABASE IF NOT EXISTS `pufferpanel`;
+CREATE DATABASE IF NOT EXISTS `pufferpanel` CHARACTER SET `utf8`;
 USE `pufferpanel`;
 
 -- Disable Foreign keys to avoid errors in dropping
@@ -40,8 +40,7 @@ CREATE TABLE IF NOT EXISTS `users` (
   UNIQUE KEY `uuid_unique` (`uuid`),
   UNIQUE KEY `email_unique` (`email`),
   UNIQUE KEY `username` (`username`)
-)
-ROW_FORMAT=DYNAMIC;
+) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
 
 CREATE TABLE IF NOT EXISTS `account_change` (
   `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
@@ -178,8 +177,8 @@ CREATE TABLE IF NOT EXISTS `_meta` (
 );
 
 INSERT INTO _meta (metaKey, metaValue) VALUES
-  ('version', 'v1.2.0'),
-  ('originalVersion', 'v1.2.0'),
+  ('version', 'v1.2.4'),
+  ('originalVersion', 'v1.2.4'),
   ('installDate', CURRENT_TIMESTAMP),
   ('updateDate', CURRENT_TIMESTAMP);
 
@@ -206,5 +205,4 @@ INSERT INTO acp_settings (setting_ref, setting_val) VALUES
             ('captcha_pub',NULL),
             ('captcha_priv',NULL),
             ('default_language', 'en_US'),
-            ('https', 0),
-            ('allow_subusers', 0) ON DUPLICATE KEY UPDATE setting_val = VALUES(setting_val)
+            ('allow_subusers', 1) ON DUPLICATE KEY UPDATE setting_val = VALUES(setting_val)

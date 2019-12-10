@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS `_meta` (
 );
 
 INSERT INTO _meta (metaKey, metaValue) VALUES
-  ('version', 'v1.2.0'),
+  ('version', 'v1.2.1'),
   ('updateDate', CURRENT_TIMESTAMP)
   ON DUPLICATE KEY UPDATE
   metaKey=VALUES(metaKey),
@@ -25,6 +25,11 @@ UPDATE oauth_clients
   JOIN users ON users.id = oauth_clients.user_id
 SET scopes = CONCAT(scopes , ' server.edit')
 WHERE scopes NOT LIKE '%server.edit%' AND users.root_admin = 1;
+
+UPDATE oauth_clients
+  JOIN users ON users.id = oauth_clients.user_id
+SET scopes = CONCAT(scopes , ' node.templates')
+WHERE scopes NOT LIKE '%node.templates%' AND users.root_admin = 1;
 
 ALTER TABLE users MODIFY `session_id` char(40);
 

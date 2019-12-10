@@ -81,7 +81,7 @@ function configureMysql() {
     mysql -h ${mysqlHost} -P ${mysqlPort} -u ${mysqlUser} --password="${mysqlPass}" -e "SET GLOBAL event_scheduler = ON;"
 
     newUser="pufferpanel"
-    newPw=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1)
+    newPw=$(cat /dev/urandom | tr -dc 'a-zA-Z0-9,.:\-@[]-_\-#+*~&%' | fold -w 32 | head -n 1)
     newHost=$(mysql -h ${mysqlHost} -P ${mysqlPort} -D ${mysqlDb} -u ${mysqlUser} --password="${mysqlPass}" -sN -e "SELECT USER()")
 	newHost=${newHost/${mysqlUser}@}
 
@@ -276,10 +276,15 @@ function configureNginx() {
     fi
 
     getPhpConfLocation
-
-    phpSocket=$(grep "^listen[| ]\?=[| ]" "$phpWWWConfLocation" 2>/dev/null | awk -F'[=&]' '{print $2}' | sed -e 's/ //')
-    if [ "${phpSocket}" = "" ]; then
+    
+    if [ "${phpWWWConfLocation}" = "" ]; then
         echo -e "Could not determine where PHP config is, cannot install config"
+        return
+    fi
+
+    phpSocket=$(grep "^listen[| ]\?=[| ]" $phpWWWConfLocation 2>/dev/null | awk -F'[=&]' '{print $2}' | sed -e 's/ //')
+    if [ "${phpSocket}" = "" ]; then
+        echo -e "Could not determine where PHP is listening, cannot install config"
         return
     fi
 
@@ -368,14 +373,19 @@ function configureNginx() {
 
 function updateLogOwner() {
     getPhpConfLocation
+    
+    if [ "${phpWWWConfLocation}" = "" ]; then
+        echo -e "Could not determine where PHP config is, cannot install config"
+        return
+    fi
 
-    phpUser=$(grep "^user \?= \?" "$phpWWWConfLocation" 2>/dev/null | awk -F'[=&]' '{print $2}' | sed -e 's/ //')
+    phpUser=$(grep "^user \?= \?" $phpWWWConfLocation 2>/dev/null | awk -F'[=&]' '{print $2}' | sed -e 's/ //')
     if [ "${phpUser}" = "" ]; then
         echo -e "Could not determine PHP user, cannot correct log folder owner"
         return
     fi
 
-    phpGroup=$(grep "^user \?= \?" "$phpWWWConfLocation" 2>/dev/null | awk -F'[=&]' '{print $2}' | sed -e 's/ //')
+    phpGroup=$(grep "^user \?= \?" $phpWWWConfLocation 2>/dev/null | awk -F'[=&]' '{print $2}' | sed -e 's/ //')
     if [ "${phpGroup}" = "" ]; then
         echo -e "Could not determine PHP group, cannot correct log folder owner"
         return
@@ -386,8 +396,6 @@ function updateLogOwner() {
 
 function getPhpConfLocation(){
     declare -a wwwConfLocations=(
-        "/etc/php/7.0/fpm/pool.d/www.conf"
-        "/etc/php/7.1/fpm/pool.d/www.conf"
         "/etc/php/*/fpm/pool.d/www.conf"
         "/etc/php-fpm.d/www.conf"
         "/etc/php/php-fpm.d/www.conf"
@@ -397,7 +405,7 @@ function getPhpConfLocation(){
 
     for loc in "${wwwConfLocations[@]}"; do
         echo "$loc"
-        if [ -e $loc ]; then
+        if compgen -G "$loc"; then
             phpWWWConfLocation="$loc"
             break
         fi
@@ -408,14 +416,9 @@ case $1 in
     install)
 
         installNode=1
-        forceInstall=0
         for i in "$@"
         do
-        case $i in
-            --force)
-                forceInstall=1
-                shift
-                ;;
+        case ${i} in
             --withoutDaemon)
                 installNode=0
                 shift
@@ -429,12 +432,12 @@ case $1 in
             exit 1;
         fi
 
-        result=$(php -r 'exit (version_compare(PHP_VERSION, "7.0.0") < 0 ? "1" : "0");');
-        if [ "$result" == "0" ]; then
-            echo "PHP 7.0.0+: [${green}Installed${normal}]"
+        result=$(php -r 'exit (version_compare(PHP_VERSION, "7.1.0") < 0 ? "1" : "0");');
+        if [ "${result}" == "0" ]; then
+            echo "PHP 7.1.0+: [${green}Installed${normal}]"
         else
-            echo "PHP 7.0.0+: [${red}Not Installed${normal}]"
-            canInstall=false
+            echo "PHP 7.1.0+: [${red}Not Installed${normal}]"
+            canInstall=0
         fi
 
         extensions=("curl" "hash" "openssl" "pdo" "pdo_mysql")
@@ -449,13 +452,8 @@ case $1 in
             fi
         done
         if [ "${canInstall}" -eq "0" ]; then
-            if [ "${forceInstall}" -eq "1" ]; then
-                canInstall=1
-                echo "Forcing installer due to flag being present"
-            else
-                echo "Dependencies are missing, cannot install"
-                exit 1
-            fi
+            echo "Dependencies are missing, cannot install"
+            exit 1
         fi
 
         printSeparator
